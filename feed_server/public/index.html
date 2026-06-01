@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LOBE — Live Order Book</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ──────────────────────────────────────────────────── */
+    header {
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 { color: #58a6ff; font-size: 16px; letter-spacing: 2px; }
+    #status {
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      background: #21262d;
+    }
+    #status.ok  { color: #3fb950; border: 1px solid #3fb950; }
+    #status.err { color: #f85149; border: 1px solid #f85149; }
+
+    /* ── Main grid ───────────────────────────────────────────────── */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr auto;
+      gap: 1px;
+      background: #30363d;
+      overflow: hidden;
+    }
+
+    section {
+      background: #0d1117;
+      padding: 14px;
+      overflow-y: auto;
+    }
+
+    section h2 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #8b949e;
+      margin-bottom: 12px;
+      border-bottom: 1px solid #21262d;
+      padding-bottom: 6px;
+    }
+
+    /* ── Order Book table ─────────────────────────────────────────── */
+    #book-section { grid-column: 1; grid-row: 1; }
+
+    .book-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .book-table th {
+      color: #8b949e;
+      font-size: 11px;
+      text-align: right;
+      padding: 3px 8px;
+    }
+    .book-table th:first-child { text-align: left; }
+
+    .ask-row td { color: #f85149; text-align: right; padding: 4px 8px; }
+    .bid-row td { color: #3fb950; text-align: right; padding: 4px 8px; }
+    .ask-row td:first-child,
+    .bid-row td:first-child { text-align: left; }
+
+    /* Bar showing depth visually */
+    .depth-bar {
+      display: inline-block;
+      height: 10px;
+      border-radius: 2px;
+      opacity: 0.35;
+    }
+    .ask-row .depth-bar { background: #f85149; }
+    .bid-row .depth-bar { background: #3fb950; }
+
+    .spread-row td {
+      text-align: center;
+      color: #8b949e;
+      font-size: 11px;
+      padding: 6px 0;
+      border-top:    1px solid #21262d;
+      border-bottom: 1px solid #21262d;
+    }
+
+    /* ── Trade feed ───────────────────────────────────────────────── */
+    #trades-section { grid-column: 2; grid-row: 1; }
+
+    .trade-entry {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      border-bottom: 1px solid #161b22;
+      animation: fadein 0.3s ease;
+    }
+    @keyframes fadein { from { opacity: 0; transform: translateX(6px); } to { opacity: 1; } }
+
+    .trade-price { color: #e3b341; font-weight: bold; }
+    .trade-qty   { color: #8b949e; }
+    .trade-ids   { color: #58a6ff; font-size: 11px; }
+    .trade-num   { color: #6e7681; font-size: 11px; min-width: 30px; }
+
+    /* ── Order submission form ────────────────────────────────────── */
+    #form-section {
+      grid-column: 1 / -1;
+      grid-row: 2;
+      background: #161b22;
+      border-top: 1px solid #30363d;
+      padding: 12px 20px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    #form-section label { color: #8b949e; font-size: 11px; }
+
+    #form-section input {
+      background: #21262d;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 13px;
+      width: 90px;
+    }
+    #form-section input:focus {
+      outline: none;
+      border-color: #58a6ff;
+    }
+
+    button {
+      padding: 5px 14px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: monospace;
+      font-size: 13px;
+      font-weight: bold;
+      transition: opacity 0.15s;
+    }
+    button:hover { opacity: 0.85; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    #btn-buy        { background: #238636; color: #fff; }
+    #btn-sell       { background: #b91c1c; color: #fff; }
+    #btn-market-buy { background: #1d4ed8; color: #fff; }
+    #btn-market-sell{ background: #7c3aed; color: #fff; }
+
+    #log {
+      color: #8b949e;
+      font-size: 11px;
+      margin-left: auto;
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ LOBE — Live Order Book Engine</h1>
+  <span id="status" class="err">● Disconnected</span>
+</header>
+
+<main>
+  <!-- Left: order book -->
+  <section id="book-section">
+    <h2>Order Book</h2>
+    <table class="book-table">
+      <thead>
+        <tr>
+          <th>Side</th>
+          <th>Price</th>
+          <th>Qty</th>
+          <th style="width:80px">Depth</th>
+        </tr>
+      </thead>
+      <tbody id="book-body">
+        <tr><td colspan="4" style="color:#8b949e;padding:10px 0">Waiting for data...</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Right: trade feed -->
+  <section id="trades-section">
+    <h2>Trade Feed  <span id="trade-count" style="color:#3fb950;font-size:11px"></span></h2>
+    <div id="trade-list"></div>
+  </section>
+
+  <!-- Bottom: order form -->
+  <section id="form-section">
+    <label>Price</label>
+    <input id="inp-price" type="number" step="0.01" value="100.00" />
+    <label>Qty</label>
+    <input id="inp-qty" type="number" value="100" />
+
+    <button id="btn-buy"         onclick="sendOrder('buy')">BUY Limit</button>
+    <button id="btn-sell"        onclick="sendOrder('sell')">SELL Limit</button>
+    <button id="btn-market-buy"  onclick="sendOrder('mbuy')">Market BUY</button>
+    <button id="btn-market-sell" onclick="sendOrder('msell')">Market SELL</button>
+
+    <span id="log">—</span>
+  </section>
+</main>
+
+<script>
+  // ── WebSocket connection ────────────────────────────────────────────────────
+  let ws = null;
+  let tradeCount = 0;
+  const MAX_TRADES = 50;  // keep last 50 trades in the feed
+
+  function connect() {
+    ws = new WebSocket(`ws://${location.host}`);
+
+    ws.onopen = () => {
+      document.getElementById('status').textContent = '● Connected';
+      document.getElementById('status').className = 'ok';
+      log('Connected to LOBE engine');
+      setButtons(true);
+    };
+
+    ws.onclose = () => {
+      document.getElementById('status').textContent = '● Disconnected';
+      document.getElementById('status').className = 'err';
+      setButtons(false);
+      log('Disconnected — retrying in 2s...');
+      setTimeout(connect, 2000);
+    };
+
+    ws.onerror = () => {
+      log('WebSocket error');
+    };
+
+    ws.onmessage = (evt) => {
+      try {
+        const msg = JSON.parse(evt.data);
+        handleMessage(msg);
+      } catch (e) {
+        console.warn('Bad JSON from server:', evt.data);
+      }
+    };
+  }
+
+  // ── Message handler ─────────────────────────────────────────────────────────
+  function handleMessage(msg) {
+    if (msg.type === 'book')        renderBook(msg);
+    else if (msg.type === 'trade')  renderTrade(msg);
+    else if (msg.type === 'ack')    log(`Order #${msg.id} accepted`);
+    else if (msg.type === 'cancel_ack') log(`Cancel ${msg.ok ? 'OK' : 'FAILED'} for id=${msg.id}`);
+    else if (msg.type === 'connected') log(msg.msg);
+    else if (msg.type === 'error')  log(`Error: ${msg.msg}`);
+  }
+
+  // ── Render order book ───────────────────────────────────────────────────────
+  function renderBook(msg) {
+    const tbody = document.getElementById('book-body');
+    const bids = msg.bids || [];   // [[price, qty], ...]
+    const asks = msg.asks || [];
+
+    // Find max qty for depth bar scaling
+    const allQty = [...bids, ...asks].map(l => l[1]);
+    const maxQty = allQty.length ? Math.max(...allQty) : 1;
+
+    let html = '';
+
+    // Ask levels (sells) — show top 5, reversed so best ask is nearest the spread
+    const displayAsks = asks.slice(0, 5).reverse();
+    for (const [price, qty] of displayAsks) {
+      const barW = Math.round((qty / maxQty) * 80);
+      html += `<tr class="ask-row">
+        <td>SELL</td>
+        <td>${price.toFixed(2)}</td>
+        <td>${qty}</td>
+        <td><span class="depth-bar" style="width:${barW}px"></span></td>
+      </tr>`;
+    }
+
+    // Spread row
+    if (bids.length && asks.length) {
+      const spread = (asks[0][0] - bids[0][0]).toFixed(2);
+      html += `<tr class="spread-row"><td colspan="4">── spread: ${spread} ──</td></tr>`;
+    }
+
+    // Bid levels (buys) — show top 5, best bid first
+    const displayBids = bids.slice(0, 5);
+    for (const [price, qty] of displayBids) {
+      const barW = Math.round((qty / maxQty) * 80);
+      html += `<tr class="bid-row">
+        <td>BUY</td>
+        <td>${price.toFixed(2)}</td>
+        <td>${qty}</td>
+        <td><span class="depth-bar" style="width:${barW}px"></span></td>
+      </tr>`;
+    }
+
+    if (!html) {
+      html = `<tr><td colspan="4" style="color:#8b949e;padding:10px 0">Book is empty</td></tr>`;
+    }
+
+    tbody.innerHTML = html;
+  }
+
+  // ── Render trade ────────────────────────────────────────────────────────────
+  function renderTrade(msg) {
+    tradeCount++;
+    document.getElementById('trade-count').textContent = `(${tradeCount} total)`;
+
+    const list = document.getElementById('trade-list');
+
+    const div = document.createElement('div');
+    div.className = 'trade-entry';
+    div.innerHTML = `
+      <span class="trade-num">#${msg.trade_id}</span>
+      <span class="trade-price">${msg.price.toFixed(2)}</span>
+      <span class="trade-qty">qty ${msg.qty}</span>
+      <span class="trade-ids">B:${msg.buy_order_id} S:${msg.sell_order_id}</span>
+    `;
+
+    list.insertBefore(div, list.firstChild);
+
+    // Keep only the last MAX_TRADES entries
+    while (list.children.length > MAX_TRADES) {
+      list.removeChild(list.lastChild);
+    }
+  }
+
+  // ── Send order ──────────────────────────────────────────────────────────────
+  function sendOrder(action) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      log('Not connected');
+      return;
+    }
+
+    const price = parseFloat(document.getElementById('inp-price').value);
+    const qty   = parseInt(document.getElementById('inp-qty').value);
+
+    if (isNaN(qty) || qty <= 0) { log('Invalid qty'); return; }
+
+    let payload;
+    if (action === 'mbuy' || action === 'msell') {
+      payload = { action, qty };
+      log(`Sending market ${action === 'mbuy' ? 'BUY' : 'SELL'} qty=${qty}`);
+    } else {
+      if (isNaN(price) || price <= 0) { log('Invalid price'); return; }
+      payload = { action, price, qty };
+      log(`Sending ${action.toUpperCase()} limit price=${price.toFixed(2)} qty=${qty}`);
+    }
+
+    ws.send(JSON.stringify(payload));
+  }
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+  function log(msg) {
+    document.getElementById('log').textContent = msg;
+  }
+
+  function setButtons(enabled) {
+    ['btn-buy','btn-sell','btn-market-buy','btn-market-sell']
+      .forEach(id => document.getElementById(id).disabled = !enabled);
+  }
+
+  // Allow Enter key to submit a buy order
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendOrder('buy');
+  });
+
+  // Kick off connection
+  setButtons(false);
+  connect();
+</script>
+</body>
+</html>

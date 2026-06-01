@@ -1,0 +1,8 @@
+build/
+feed_server/node_modules/
+feed_server/dist/
+*.csv
+*.png
+.vscode/
+*.o
+*.a
