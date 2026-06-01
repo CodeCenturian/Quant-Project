@@ -23,8 +23,8 @@ static inline int64_t nanos() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Percentile helper — sorts a copy of the latency vector and indexes into it
 // ─────────────────────────────────────────────────────────────────────────────
-double percentile(std::vector<int64_t> v, double p) {
-    std::sort(v.begin(), v.end());
+double percentile(vector<int64_t> v, double p) {
+    sort(v.begin(), v.end());
     size_t idx = (size_t)(p / 100.0 * (v.size() - 1));
     return (double)v[idx];
 }
@@ -32,21 +32,21 @@ double percentile(std::vector<int64_t> v, double p) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Print a results table for one scenario
 // ─────────────────────────────────────────────────────────────────────────────
-void print_stats(const std::string& name, const std::vector<int64_t>& latencies) {
-    double avg = (double)std::accumulate(latencies.begin(), latencies.end(), 0LL)
+void print_stats(const string& name, const vector<int64_t>& latencies) {
+    double avg = (double)accumulate(latencies.begin(), latencies.end(), 0LL)
                  / latencies.size();
 
-    std::cout << "\n┌─────────────────────────────────────────┐\n";
-    std::cout << "│  " << std::left << std::setw(40) << name << "│\n";
-    std::cout << "├──────────────┬──────────────────────────┤\n";
-    std::cout << "│  Ops         │ " << std::setw(26) << latencies.size()    << "│\n";
-    std::cout << "│  Mean        │ " << std::setw(22) << std::fixed << std::setprecision(1) << avg        << " ns │\n";
-    std::cout << "│  P50         │ " << std::setw(22) << percentile(latencies, 50)  << " ns │\n";
-    std::cout << "│  P95         │ " << std::setw(22) << percentile(latencies, 95)  << " ns │\n";
-    std::cout << "│  P99         │ " << std::setw(22) << percentile(latencies, 99)  << " ns │\n";
-    std::cout << "│  P99.9       │ " << std::setw(22) << percentile(latencies, 99.9)<< " ns │\n";
-    std::cout << "│  Max         │ " << std::setw(22) << *std::max_element(latencies.begin(), latencies.end()) << " ns │\n";
-    std::cout << "└──────────────┴──────────────────────────┘\n";
+    cout << "\n┌─────────────────────────────────────────┐\n";
+    cout << "│  " << left << setw(40) << name << "│\n";
+    cout << "├──────────────┬──────────────────────────┤\n";
+    cout << "│  Ops         │ " << setw(26) << latencies.size()    << "│\n";
+    cout << "│  Mean        │ " << setw(22) << fixed << setprecision(1) << avg        << " ns │\n";
+    cout << "│  P50         │ " << setw(22) << percentile(latencies, 50)  << " ns │\n";
+    cout << "│  P95         │ " << setw(22) << percentile(latencies, 95)  << " ns │\n";
+    cout << "│  P99         │ " << setw(22) << percentile(latencies, 99)  << " ns │\n";
+    cout << "│  P99.9       │ " << setw(22) << percentile(latencies, 99.9)<< " ns │\n";
+    cout << "│  Max         │ " << setw(22) << *max_element(latencies.begin(), latencies.end()) << " ns │\n";
+    cout << "└──────────────┴──────────────────────────┘\n";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -54,9 +54,9 @@ void print_stats(const std::string& name, const std::vector<int64_t>& latencies)
 // Submit N limit orders that never cross the spread.
 // Measures the raw cost of inserting into the data structure.
 // ─────────────────────────────────────────────────────────────────────────────
-std::vector<int64_t> bench_insert_only(int N) {
+vector<int64_t> bench_insert_only(int N) {
     OrderBook book;
-    std::vector<int64_t> lat;
+    vector<int64_t> lat;
     lat.reserve(N);
 
     // All buys below 100, all sells above 110 → no matching ever happens
@@ -74,9 +74,9 @@ std::vector<int64_t> bench_insert_only(int N) {
 // Alternating buy/sell that always cross → every order generates a trade.
 // Measures the cost of matching + trade generation.
 // ─────────────────────────────────────────────────────────────────────────────
-std::vector<int64_t> bench_match_heavy(int N) {
+vector<int64_t> bench_match_heavy(int N) {
     OrderBook book;
-    std::vector<int64_t> lat;
+    vector<int64_t> lat;
     lat.reserve(N);
 
     for (int i = 0; i < N; i++) {
@@ -95,11 +95,11 @@ std::vector<int64_t> bench_match_heavy(int N) {
 // Simulates a realistic order flow:
 //   70% limit inserts (no cross), 20% cancels, 10% market orders
 // ─────────────────────────────────────────────────────────────────────────────
-std::vector<int64_t> bench_realistic(int N) {
+vector<int64_t> bench_realistic(int N) {
     OrderBook book;
-    std::vector<int64_t> lat;
+    vector<int64_t> lat;
     lat.reserve(N);
-    std::vector<OrderId> live_ids;
+    vector<OrderId> live_ids;
     live_ids.reserve(N);
 
     for (int i = 0; i < N; i++) {
@@ -134,21 +134,21 @@ std::vector<int64_t> bench_realistic(int N) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Save raw latencies to CSV for the Python report script
 // ─────────────────────────────────────────────────────────────────────────────
-void save_csv(const std::string& filename,
-              const std::vector<int64_t>& inserts,
-              const std::vector<int64_t>& matches,
-              const std::vector<int64_t>& mixed)
+void save_csv(const string& filename,
+              const vector<int64_t>& inserts,
+              const vector<int64_t>& matches,
+              const vector<int64_t>& mixed)
 {
-    std::ofstream f(filename);
+    ofstream f(filename);
     f << "insert_ns,match_ns,mixed_ns\n";
-    size_t rows = std::max({inserts.size(), matches.size(), mixed.size()});
+    size_t rows = max({inserts.size(), matches.size(), mixed.size()});
     for (size_t i = 0; i < rows; i++) {
-        f << (i < inserts.size() ? std::to_string(inserts[i]) : "") << ","
-          << (i < matches.size() ? std::to_string(matches[i]) : "") << ","
-          << (i < mixed.size()   ? std::to_string(mixed[i])   : "") << "\n";
+        f << (i < inserts.size() ? to_string(inserts[i]) : "") << ","
+          << (i < matches.size() ? to_string(matches[i]) : "") << ","
+          << (i < mixed.size()   ? to_string(mixed[i])   : "") << "\n";
     }
-    std::cout << "\nLatency data saved to: " << filename << "\n";
-    std::cout << "Run:  python3 ../benchmark/report.py " << filename << "\n";
+    cout << "\nLatency data saved to: " << filename << "\n";
+    cout << "Run:  python3 ../benchmark/report.py " << filename << "\n";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -157,13 +157,13 @@ void save_csv(const std::string& filename,
 int main() {
     const int N = 100'000;
 
-    std::cout << "LOBE Latency Benchmark  (" << N << " ops per scenario)\n";
-    std::cout << "Compiled with: -O3 -march=native\n";
+    cout << "LOBE Latency Benchmark  (" << N << " ops per scenario)\n";
+    cout << "Compiled with: -O3 -march=native\n";
 
     // Warm up the CPU / cache before measuring
-    std::cout << "\nWarming up...";
+    cout << "\nWarming up...";
     bench_insert_only(10'000);
-    std::cout << " done\n";
+    cout << " done\n";
 
     auto inserts = bench_insert_only(N);
     print_stats("Scenario 1 — Insert only (no match)", inserts);

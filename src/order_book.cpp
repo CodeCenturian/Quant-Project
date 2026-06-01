@@ -2,8 +2,8 @@
 
 #include <iostream>
 #include <iomanip>
-#include <chrono>
 #include <stdexcept>
+#include <ctime>
 
 using namespace std;
 
@@ -11,7 +11,7 @@ using namespace std;
 // Constructor
 // ─────────────────────────────────────────────────────────────────────────────
 OrderBook::OrderBook(TradeCallback on_trade)
-    : on_trade_(std::move(on_trade))
+    : on_trade_(move(on_trade))
 {}
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -19,7 +19,7 @@ OrderBook::OrderBook(TradeCallback on_trade)
 // ─────────────────────────────────────────────────────────────────────────────
 OrderId OrderBook::add_order(Side side, OrderType type, double real_price, Quantity qty)
 {
-    if (qty == 0) throw std::invalid_argument("Quantity must be > 0");
+    if (qty == 0) throw invalid_argument("Quantity must be > 0");
 
     Order order {
         .id           = next_order_id_++,
@@ -140,7 +140,7 @@ void OrderBook::match(Order& incoming)
 // ─────────────────────────────────────────────────────────────────────────────
 Trade OrderBook::execute_fill(Order& aggressor, Order& resting)
 {
-    Quantity fill_qty = std::min(aggressor.quantity, resting.quantity);
+    Quantity fill_qty = min(aggressor.quantity, resting.quantity);
 
     aggressor.quantity -= fill_qty;
     resting.quantity   -= fill_qty;
@@ -193,18 +193,18 @@ bool OrderBook::cancel_order(OrderId id)
 // ─────────────────────────────────────────────────────────────────────────────
 // best_bid / best_ask — peek at top of book
 // ─────────────────────────────────────────────────────────────────────────────
-std::optional<double> OrderBook::best_bid() const {
-    if (bids_.empty()) return std::nullopt;
+optional<double> OrderBook::best_bid() const {
+    if (bids_.empty()) return nullopt;
     return to_price(bids_.begin()->first);
 }
 
-std::optional<double> OrderBook::best_ask() const {
-    if (asks_.empty()) return std::nullopt;
+optional<double> OrderBook::best_ask() const {
+    if (asks_.empty()) return nullopt;
     return to_price(asks_.begin()->first);
 }
 
-std::vector<OrderBook::BookLevel> OrderBook::get_bids(size_t depth) const {
-    std::vector<BookLevel> result;
+vector<OrderBook::BookLevel> OrderBook::get_bids(size_t depth) const {
+    vector<BookLevel> result;
     for (auto& [price, dq] : bids_) {
         Quantity total = 0;
         for (auto& o : dq) total += o.quantity;
@@ -214,8 +214,8 @@ std::vector<OrderBook::BookLevel> OrderBook::get_bids(size_t depth) const {
     return result;
 }
 
-std::vector<OrderBook::BookLevel> OrderBook::get_asks(size_t depth) const {
-    std::vector<BookLevel> result;
+vector<OrderBook::BookLevel> OrderBook::get_asks(size_t depth) const {
+    vector<BookLevel> result;
     for (auto& [price, dq] : asks_) {
         Quantity total = 0;
         for (auto& o : dq) total += o.quantity;
@@ -230,15 +230,15 @@ std::vector<OrderBook::BookLevel> OrderBook::get_asks(size_t depth) const {
 // ─────────────────────────────────────────────────────────────────────────────
 void OrderBook::print_book() const
 {
-    std::cout << "\n";
-    std::cout << "╔══════════════════════════════════╗\n";
-    std::cout << "║        ORDER BOOK (LOBE)         ║\n";
-    std::cout << "╠════════════════╦═════════════════╣\n";
-    std::cout << "║  BUY (bids)    ║  SELL (asks)    ║\n";
-    std::cout << "╠════════════════╬═════════════════╣\n";
+    cout << "\n";
+    cout << "╔══════════════════════════════════╗\n";
+    cout << "║        ORDER BOOK (LOBE)         ║\n";
+    cout << "╠════════════════╦═════════════════╣\n";
+    cout << "║  BUY (bids)    ║  SELL (asks)    ║\n";
+    cout << "╠════════════════╬═════════════════╣\n";
 
     // Collect up to 5 levels from each side for display
-    std::vector<std::pair<double,uint64_t>> bid_levels, ask_levels;
+    vector<pair<double,uint64_t>> bid_levels, ask_levels;
 
     for (auto& [price, dq] : bids_) {
         uint64_t total = 0;
@@ -253,45 +253,44 @@ void OrderBook::print_book() const
         if (ask_levels.size() == 5) break;
     }
 
-    size_t rows = std::max(bid_levels.size(), ask_levels.size());
+    size_t rows = max(bid_levels.size(), ask_levels.size());
     if (rows == 0) {
-        std::cout << "║   (empty)      ║   (empty)       ║\n";
+        cout << "║   (empty)      ║   (empty)       ║\n";
     }
 
     for (size_t i = 0; i < rows; ++i) {
-        std::cout << "║ ";
+        cout << "║ ";
         if (i < bid_levels.size())
-            std::cout << std::fixed << std::setprecision(2)
-                      << std::setw(7) << bid_levels[i].first
-                      << "  qty:" << std::setw(4) << bid_levels[i].second;
+            cout << fixed << setprecision(2)
+                 << setw(7) << bid_levels[i].first
+                 << "  qty:" << setw(4) << bid_levels[i].second;
         else
-            std::cout << "               ";
-        std::cout << " ║ ";
+            cout << "               ";
+        cout << " ║ ";
         if (i < ask_levels.size())
-            std::cout << std::fixed << std::setprecision(2)
-                      << std::setw(7) << ask_levels[i].first
-                      << "  qty:" << std::setw(4) << ask_levels[i].second;
+            cout << fixed << setprecision(2)
+                 << setw(7) << ask_levels[i].first
+                 << "  qty:" << setw(4) << ask_levels[i].second;
         else
-            std::cout << "               ";
-        std::cout << " ║\n";
+            cout << "               ";
+        cout << " ║\n";
     }
 
-    std::cout << "╚════════════════╩═════════════════╝\n";
+    cout << "╚════════════════╩═════════════════╝\n";
 
     auto bid = best_bid();
     auto ask = best_ask();
     if (bid && ask)
-        std::cout << "  Spread: " << std::fixed << std::setprecision(2)
+        cout << "  Spread: " << fixed << setprecision(2)
                   << (*ask - *bid) << "\n";
-    std::cout << "\n";
+    cout << "\n";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // now_ns — nanosecond timestamp using the monotonic clock
 // ─────────────────────────────────────────────────────────────────────────────
 int64_t OrderBook::now_ns() {
-    using namespace std::chrono;
-    return duration_cast<nanoseconds>(
-        steady_clock::now().time_since_epoch()
-    ).count();
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+    return (int64_t)ts.tv_sec * 1'000'000'000LL + ts.tv_nsec;
 }
